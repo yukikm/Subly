@@ -25,7 +25,7 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="templateexpobasic"/>
-        <data android:scheme="exp+subly-app"/>
+        <data android:scheme="exp+sub"/>
       </intent-filter>
     </activity>
   </application>

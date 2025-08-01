@@ -31,3 +31,34 @@ impl SubscriptionService {
         4 + 200 + // image_url (String length + content)
         8; // created_at
 }
+
+#[account]
+pub struct User {
+    pub wallet: Pubkey,
+    pub deposited_sol: u64, // lamports
+    pub subscription_count: u64,
+}
+
+impl User {
+    pub const LEN: usize = 8 + 32 + 8 + 8; // discriminator + Pubkey + u64 + u64
+}
+
+#[account]
+pub struct UserSubscription {
+    pub user: Pubkey,
+    pub provider: Pubkey,
+    pub service_id: u64,
+    pub subscription_id: u64, // ユーザーの契約ID
+    pub subscribed_at: i64,
+    pub is_active: bool,
+}
+
+impl UserSubscription {
+    pub const LEN: usize = 8 + // discriminator
+        32 + // user
+        32 + // provider  
+        8 + // service_id
+        8 + // subscription_id
+        8 + // subscribed_at
+        1; // is_active
+}

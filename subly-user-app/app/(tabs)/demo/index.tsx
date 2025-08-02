@@ -1,11 +1,6 @@
 import React from 'react'
-import { AppPage } from '@/components/app-page'
-import { DemoFeature } from '@/components/demo/demo-feature'
+import { SublyDemo } from '@/components/subly/subly-demo'
 
 export default function TabsDemoScreen() {
-  return (
-    <AppPage>
-      <DemoFeature />
-    </AppPage>
-  )
+  return <SublyDemo />
 }

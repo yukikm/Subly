@@ -25,4 +25,16 @@ export const Colors = {
     text: '#ECEDEE',
     tint: tintColorDark,
   },
+  // Additional colors for Subly app
+  primary: '#6366f1',
+  primaryDark: '#4f46e5',
+  secondary: '#8b5cf6',
+  success: '#10b981',
+  warning: '#f59e0b',
+  error: '#ef4444',
+  cardBackground: '#f8fafc',
+  inputBackground: '#f1f5f9',
+  textSecondary: '#64748b',
+  buttonSecondary: '#e2e8f0',
+  buttonDisabled: '#cbd5e1',
 }

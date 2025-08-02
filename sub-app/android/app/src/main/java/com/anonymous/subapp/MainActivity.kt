@@ -1,4 +1,4 @@
-package com.anonymous.sub
+package com.anonymous.subapp
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

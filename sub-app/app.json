@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "sub",
-    "slug": "sub",
+    "name": "sub-app",
+    "slug": "sub-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -17,7 +17,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.sub"
+      "package": "com.anonymous.subapp"
     },
     "web": {
       "bundler": "metro",

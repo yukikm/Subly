@@ -1,4 +1,4 @@
-package com.anonymous.sub
+package com.anonymous.subapp
 
 import android.app.Application
 import android.content.res.Configuration

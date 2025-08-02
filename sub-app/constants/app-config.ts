@@ -3,7 +3,7 @@ import { Cluster } from '@/components/cluster/cluster'
 import { ClusterNetwork } from '@/components/cluster/cluster-network'
 
 export class AppConfig {
-  static name = 'sub'
+  static name = 'sub-app'
   static uri = 'https://example.com'
   static clusters: Cluster[] = [
     {

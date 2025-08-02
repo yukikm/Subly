@@ -1,11 +1,11 @@
 import React from 'react'
+import { AppPage } from '@/components/app-page'
 import { ProviderDashboard } from '@/components/provider/provider-dashboard'
-import { AppView } from '@/components/app-view'
 
-export default function ProviderIndex() {
+export default function DashboardScreen() {
   return (
-    <AppView style={{ flex: 1 }}>
+    <AppPage>
       <ProviderDashboard />
-    </AppView>
+    </AppPage>
   )
 }

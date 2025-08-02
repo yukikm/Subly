@@ -1,11 +1,11 @@
 import React from 'react'
+import { AppPage } from '@/components/app-page'
 import { ProviderRegisterService } from '@/components/provider/provider-register-service'
-import { AppView } from '@/components/app-view'
 
-export default function RegisterService() {
+export default function AddServiceScreen() {
   return (
-    <AppView style={{ flex: 1 }}>
+    <AppPage>
       <ProviderRegisterService />
-    </AppView>
+    </AppPage>
   )
 }

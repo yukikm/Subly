@@ -5,13 +5,30 @@ import { Colors } from '@/constants/colors'
 import { AppText } from '@/components/app-text'
 import { AppView } from '@/components/app-view'
 import { SublyButton } from '@/components/subly/subly-button'
-import { useMobileWallet } from '@/components/solana/use-mobile-wallet'
-import { useConnection } from '@/components/solana/solana-provider'
-import { useAuthorization } from '@/components/solana/use-authorization'
+import { useWalletUi } from '@/components/solana/use-wallet-ui'
 import { useThemeColor } from '@/hooks/use-theme-color'
-import { MOCK_SUBSCRIPTION_SERVICES } from '@/constants/subly-program'
-import { createSubscribeToServiceInstruction } from '@/utils/subly-program-enhanced'
-import { Transaction, Keypair } from '@solana/web3.js'
+import { useSubscribeToService } from '@/hooks/use-subly-program'
+import { PublicKey } from '@solana/web3.js'
+
+// Mock Netflix subscription service data
+const MOCK_SUBSCRIPTION_SERVICES = [
+  {
+    id: '1',
+    provider: '7xKXtg2CW3bJWk5nD4vK8JW4yUGf5rW3Q6vKJmG9P2zK', // Mock provider
+    name: 'Netflix',
+    feeUsd: 7,
+    billingFrequencyDays: 30,
+    imageUrl: 'https://www.freepnglogos.com/uploads/netflix-logo-0.png',
+    description: 'Stream unlimited movies and TV shows with Netflix Premium',
+    features: [
+      'Unlimited streaming',
+      '4K Ultra HD quality',
+      'Multiple device support',
+      'No ads',
+      'Download for offline viewing',
+    ],
+  },
+]
 
 interface SubscriptionService {
   id: string
@@ -29,14 +46,13 @@ interface SubscriptionServicesProps {
 }
 
 export function SubscriptionServices({ onSubscriptionSuccess }: SubscriptionServicesProps) {
-  const connection = useConnection()
-  const { signAndSendTransaction } = useMobileWallet()
-  const { selectedAccount } = useAuthorization()
+  const { account } = useWalletUi()
+  const { subscribeToService } = useSubscribeToService()
   const borderColor = useThemeColor({}, 'border')
   const [isLoading, setIsLoading] = useState<string | null>(null)
 
   const handleSubscribe = async (service: SubscriptionService) => {
-    if (!selectedAccount?.publicKey) {
+    if (!account?.publicKey) {
       Alert.alert('Error', 'Please connect your wallet first')
       return
     }
@@ -48,45 +64,22 @@ export function SubscriptionServices({ onSubscriptionSuccess }: SubscriptionServ
   }
 
   const processSubscription = async (service: SubscriptionService) => {
-    if (!selectedAccount?.publicKey) return
+    if (!account?.publicKey) return
 
     setIsLoading(service.id)
 
     try {
-      // Generate a new keypair for the certificate NFT mint
-      const certificateNftMint = Keypair.generate()
+      // Mock provider wallet from service data
+      const mockProviderWallet = new PublicKey(service.provider)
 
-      // Mock provider wallet (in real implementation, this would come from the service data)
-      const mockProviderWallet = Keypair.generate().publicKey
+      // Mock subscription ID (in real implementation, this would be generated or incremented)
+      const subscriptionId = Math.floor(Math.random() * 1000)
 
-      // Mock subscription count (in real implementation, this would be fetched from user account)
-      const subscriptionCount = 0
-
-      // Create subscribe instruction
-      const subscribeInstruction = createSubscribeToServiceInstruction(
-        selectedAccount.publicKey,
-        mockProviderWallet,
-        parseInt(service.id),
-        certificateNftMint.publicKey,
-        subscriptionCount,
-      )
-
-      // Create transaction
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash()
-      const transaction = new Transaction({
-        feePayer: selectedAccount.publicKey,
-        blockhash,
-        lastValidBlockHeight,
-      }).add(subscribeInstruction)
-
-      // Add the certificate NFT mint as a signer
-      transaction.partialSign(certificateNftMint)
-
-      // Sign and send transaction
-      const signature = await signAndSendTransaction(transaction, lastValidBlockHeight)
+      // Use the new subscribe hook
+      const signature = await subscribeToService(mockProviderWallet, parseInt(service.id), subscriptionId)
 
       if (signature) {
-        Alert.alert('Success!', `Successfully subscribed to ${service.name}! You will receive a certificate NFT.`, [
+        Alert.alert('Success!', `Successfully subscribed to ${service.name}!`, [
           {
             text: 'OK',
             onPress: () => {
@@ -117,7 +110,7 @@ export function SubscriptionServices({ onSubscriptionSuccess }: SubscriptionServ
       <AppText style={styles.serviceDescription}>{service.description}</AppText>
 
       <View style={styles.featuresContainer}>
-        {service.features.map((feature, index) => (
+        {service.features.map((feature: string, index: number) => (
           <View key={index} style={styles.featureItem}>
             <View style={styles.featureBullet} />
             <AppText style={styles.featureText}>{feature}</AppText>
@@ -142,7 +135,7 @@ export function SubscriptionServices({ onSubscriptionSuccess }: SubscriptionServ
     </View>
   )
 
-  if (!selectedAccount?.publicKey) {
+  if (!account?.publicKey) {
     return (
       <AppView style={styles.container}>
         <AppText style={styles.connectWalletText}>Please connect your wallet to view subscription services</AppText>

@@ -5,12 +5,11 @@ import { Colors } from '@/constants/colors'
 import { AppText } from '@/components/app-text'
 import { AppView } from '@/components/app-view'
 import { SublyButton } from '@/components/subly/subly-button'
-import { useMobileWallet } from '@/components/solana/use-mobile-wallet'
 import { useConnection } from '@/components/solana/solana-provider'
-import { useAuthorization } from '@/components/solana/use-authorization'
+import { useWalletUi } from '@/components/solana/use-wallet-ui'
 import { useThemeColor } from '@/hooks/use-theme-color'
-import { createDepositSolInstruction, getUserBalance } from '@/utils/subly-program-enhanced'
-import { Transaction } from '@solana/web3.js'
+import { useDepositSol } from '@/hooks/use-subly-program'
+import { getUserBalance } from '@/components/subly/use-subly-program'
 
 interface DepositSolProps {
   onDepositSuccess?: () => void
@@ -18,33 +17,32 @@ interface DepositSolProps {
 
 export function DepositSol({ onDepositSuccess }: DepositSolProps) {
   const connection = useConnection()
-  const { signAndSendTransaction } = useMobileWallet()
-  const { selectedAccount } = useAuthorization()
+  const { account } = useWalletUi()
+  const { depositSol, isLoading: depositLoading } = useDepositSol()
   const borderColor = useThemeColor({}, 'border')
   const [amount, setAmount] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
   const [userBalance, setUserBalance] = useState<{ depositedSol: number; subscriptionCount: number } | null>(null)
 
   // Load user balance on component mount
   const loadUserBalance = useCallback(async () => {
-    if (!selectedAccount?.publicKey) return
+    if (!account?.publicKey) return
 
     try {
-      const balance = await getUserBalance(connection, selectedAccount.publicKey)
+      const balance = await getUserBalance(connection, account.publicKey)
       setUserBalance(balance)
     } catch (error) {
       console.error('Error loading user balance:', error)
     }
-  }, [selectedAccount?.publicKey, connection])
+  }, [account?.publicKey, connection])
 
   React.useEffect(() => {
-    if (selectedAccount?.publicKey) {
+    if (account?.publicKey) {
       loadUserBalance()
     }
-  }, [selectedAccount?.publicKey, loadUserBalance])
+  }, [account?.publicKey, loadUserBalance])
 
   const handleDeposit = async () => {
-    if (!selectedAccount?.publicKey) {
+    if (!account?.publicKey) {
       Alert.alert('Error', 'Please connect your wallet first')
       return
     }
@@ -60,22 +58,9 @@ export function DepositSol({ onDepositSuccess }: DepositSolProps) {
       return
     }
 
-    setIsLoading(true)
-
     try {
-      // Create deposit instruction
-      const depositInstruction = createDepositSolInstruction(selectedAccount.publicKey, depositAmount)
-
-      // Create transaction
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash()
-      const transaction = new Transaction({
-        feePayer: selectedAccount.publicKey,
-        blockhash,
-        lastValidBlockHeight,
-      }).add(depositInstruction)
-
-      // Sign and send transaction
-      const signature = await signAndSendTransaction(transaction, lastValidBlockHeight)
+      // Use the new deposit hook
+      const signature = await depositSol(depositAmount)
 
       if (signature) {
         Alert.alert('Success!', `Successfully deposited ${depositAmount} SOL to your Subly account!`, [
@@ -92,12 +77,10 @@ export function DepositSol({ onDepositSuccess }: DepositSolProps) {
     } catch (error) {
       console.error('Deposit error:', error)
       Alert.alert('Error', `Failed to deposit SOL: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    } finally {
-      setIsLoading(false)
     }
   }
 
-  if (!selectedAccount?.publicKey) {
+  if (!account?.publicKey) {
     return (
       <AppView style={styles.container}>
         <AppText style={styles.connectWalletText}>Please connect your wallet to deposit SOL</AppText>
@@ -129,7 +112,7 @@ export function DepositSol({ onDepositSuccess }: DepositSolProps) {
           placeholder="0.0"
           placeholderTextColor={Colors.textSecondary}
           keyboardType="numeric"
-          editable={!isLoading}
+          editable={!depositLoading}
         />
 
         <View style={styles.quickAmounts}>
@@ -140,7 +123,7 @@ export function DepositSol({ onDepositSuccess }: DepositSolProps) {
                 key={quickAmount}
                 style={[styles.quickAmountButton, ...(amount === quickAmount ? [styles.quickAmountButtonActive] : [])]}
                 onPress={() => setAmount(quickAmount)}
-                disabled={isLoading}
+                disabled={depositLoading}
                 variant={amount === quickAmount ? 'primary' : 'secondary'}
               >
                 {quickAmount}
@@ -150,11 +133,11 @@ export function DepositSol({ onDepositSuccess }: DepositSolProps) {
         </View>
 
         <SublyButton
-          style={[styles.depositButton, ...(isLoading ? [styles.depositButtonDisabled] : [])]}
+          style={[styles.depositButton, ...(depositLoading ? [styles.depositButtonDisabled] : [])]}
           onPress={handleDeposit}
-          disabled={isLoading || !amount}
+          disabled={depositLoading || !amount}
         >
-          {isLoading ? (
+          {depositLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="small" color="white" />
               <AppText style={styles.loadingText}>Depositing...</AppText>

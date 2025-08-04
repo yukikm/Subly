@@ -1,31 +1,32 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWalletUi } from '@/components/solana/use-wallet-ui'
 import { useConnection } from '@/components/solana/solana-provider'
-import { PublicKey, Keypair, SystemProgram, SYSVAR_RENT_PUBKEY } from '@solana/web3.js'
+import { PublicKey, SystemProgram, TransactionMessage, VersionedTransaction } from '@solana/web3.js'
+import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor'
-import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token'
 import { SublyProgram } from '@/constants/idl/subly_program'
 import sublyProgramIdl from '@/constants/idl/subly_program.json'
 
-const PROGRAM_ID = new PublicKey('w23po5aYmi7q71u7dwS2NfEL4otC7Ff7LnRFeCKywCG')
+const PROGRAM_ID = new PublicKey('5DpoKLMkQSBTi3n6hnjB7RPhzjhovfDZbEHJvFJBXKL9')
 
-// Helper function to derive PDAs
-function getProviderAccountPDA(provider: PublicKey, programId: PublicKey) {
-  return PublicKey.findProgramAddressSync([Buffer.from('provider'), provider.toBuffer()], programId)
-}
-
-function getSubscriptionServicePDA(provider: PublicKey, serviceCount: number, programId: PublicKey) {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from('subscription_service'), provider.toBuffer(), new BN(serviceCount).toArrayLike(Buffer, 'le', 8)],
-    programId,
-  )
+// Helper function to derive PDAs according to the IDL
+function getSubscriptionServicePDA(provider: PublicKey, programId: PublicKey) {
+  try {
+    // From IDL: seeds = ["subscription_service", provider]
+    const subscriptionServiceSeed = 'subscription_service'
+    const seeds = [Buffer.from(subscriptionServiceSeed, 'utf8'), provider.toBuffer()]
+    console.log('PDA seeds created:', seeds)
+    return PublicKey.findProgramAddressSync(seeds, programId)
+  } catch (error) {
+    console.error('Error creating PDA:', error)
+    throw error
+  }
 }
 
 interface RegisterServiceInput {
   name: string
   feeUsd: number
   billingFrequencyDays: number
-  imageUrl: string
 }
 
 interface SubscriptionServiceInfo {
@@ -34,7 +35,6 @@ interface SubscriptionServiceInfo {
   name: string
   feeUsd: number
   billingFrequencyDays: number
-  imageUrl: string
   createdAt: number
 }
 
@@ -68,114 +68,98 @@ export function useRegisterSubscriptionService() {
         console.log('Registering service with input:', input)
         console.log('Provider wallet:', account.publicKey.toString())
 
-        // Create wallet adapter
-        const wallet = new MobileWalletAdapter(account.publicKey)
+        // Create wallet adapter for Anchor
+        const walletAdapter = new MobileWalletAdapter(account.publicKey)
 
         // Create Anchor provider
-        const provider = new AnchorProvider(connection, wallet as any, { commitment: 'processed' })
+        const provider = new AnchorProvider(connection, walletAdapter as any, {
+          commitment: 'confirmed',
+          preflightCommitment: 'confirmed',
+        })
 
         // Create program instance
         const program = new Program<SublyProgram>(sublyProgramIdl as any, provider)
 
-        // Generate NFT mint keypair
-        const nftMint = Keypair.generate()
+        console.log('Program ID:', PROGRAM_ID.toString())
 
-        console.log('NFT Mint:', nftMint.publicKey.toString())
-
-        // Derive PDAs
-        const [providerAccount] = getProviderAccountPDA(account.publicKey, PROGRAM_ID)
-
-        // Try to fetch provider account to get current service count
-        let serviceCount = 0
-        try {
-          const providerAccountInfo = await program.account.provider.fetchNullable(providerAccount)
-          if (providerAccountInfo) {
-            serviceCount = providerAccountInfo.serviceCount
-            console.log('Current service count:', serviceCount)
-          } else {
-            console.log('Provider account not found, will be created during service registration')
-          }
-        } catch {
-          console.log('Could not fetch provider account, assuming new provider')
-        }
-
-        const [subscriptionService] = getSubscriptionServicePDA(account.publicKey, serviceCount, PROGRAM_ID)
-
-        // Calculate associated token account for NFT
-        const nftTokenAccount = await getAssociatedTokenAddress(nftMint.publicKey, account.publicKey)
-
-        console.log('Provider Account PDA:', providerAccount.toString())
+        // Derive subscription service PDA according to IDL
+        const [subscriptionService] = getSubscriptionServicePDA(account.publicKey, PROGRAM_ID)
         console.log('Subscription Service PDA:', subscriptionService.toString())
-        console.log('NFT Token Account:', nftTokenAccount.toString())
 
-        // Get recent blockhash
-        const latestBlockhash = await connection.getLatestBlockhash()
+        // Get latest blockhash
+        const latestBlockhash = await connection.getLatestBlockhash('confirmed')
+        console.log('Latest blockhash:', latestBlockhash.blockhash)
 
-        // Build the transaction using Anchor with all required accounts
-        const tx = await program.methods
+        // Build instruction using Anchor
+        console.log('Building instruction with Anchor...')
+        const instruction = await program.methods
           .registerSubscriptionService(
             input.name,
-            new BN(input.feeUsd * 100), // Convert to cents
+            new BN(Math.floor(input.feeUsd * 100)), // Convert to cents
             new BN(input.billingFrequencyDays),
-            input.imageUrl,
+            account.publicKey, // provider pubkey argument
           )
           .accountsPartial({
             provider: account.publicKey,
-            providerAccount: providerAccount,
             subscriptionService: subscriptionService,
-            nftMint: nftMint.publicKey,
-            nftTokenAccount: nftTokenAccount,
             tokenProgram: TOKEN_PROGRAM_ID,
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
-            rent: SYSVAR_RENT_PUBKEY,
           })
-          .transaction()
+          .instruction()
 
-        // Set transaction properties
-        tx.feePayer = account.publicKey
-        tx.recentBlockhash = latestBlockhash.blockhash
+        console.log('Instruction created successfully')
 
-        // Add the NFT mint as a signer
-        tx.partialSign(nftMint)
+        // Create versioned transaction message
+        const txMessage = new TransactionMessage({
+          payerKey: account.publicKey,
+          recentBlockhash: latestBlockhash.blockhash,
+          instructions: [instruction],
+        }).compileToV0Message()
 
-        console.log('Transaction built, sending...')
+        // Create versioned transaction
+        const transaction = new VersionedTransaction(txMessage)
 
-        try {
-          // Sign and send transaction using Mobile Wallet Adapter
-          const signature = await signAndSendTransaction(tx, latestBlockhash.lastValidBlockHeight)
+        console.log('Transaction created, signing and sending...')
 
-          console.log('Service registered successfully:', signature)
-          return signature
-        } catch (txError: any) {
-          console.error('Transaction error:', txError)
+        // Use the existing Mobile Wallet Adapter integration
+        // This automatically handles authorization if already connected
+        const signature = await signAndSendTransaction(transaction, latestBlockhash.lastValidBlockHeight)
 
-          if (
-            txError.message?.includes('User rejected') ||
-            txError.message?.includes('cancelled') ||
-            txError.name === 'CancellationException'
-          ) {
-            throw new Error('Transaction was cancelled by user')
-          } else if (txError.message?.includes('Simulation failed')) {
-            throw new Error('Transaction simulation failed. Please check your account balance and try again.')
-          } else if (txError.message?.includes('timeout')) {
-            throw new Error('Transaction timed out. Please try again.')
-          } else {
-            throw new Error(`Transaction failed: ${txError.message || 'Unknown error'}`)
-          }
+        console.log('Service registered successfully:', signature)
+
+        // Wait for confirmation
+        const confirmation = await connection.confirmTransaction(
+          {
+            signature,
+            blockhash: latestBlockhash.blockhash,
+            lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+          },
+          'confirmed',
+        )
+
+        if (confirmation.value.err) {
+          throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`)
         }
+
+        console.log('Transaction confirmed:', signature)
+        return signature
       } catch (error: any) {
         console.error('Error registering service:', error)
 
-        // Provide more specific error messages
-        if (error.message?.includes('insufficient funds')) {
-          throw new Error('Insufficient funds to complete the transaction')
+        // Handle specific Mobile Wallet Adapter errors
+        if (
+          error.message?.includes('User rejected') ||
+          error.message?.includes('cancelled') ||
+          error.name === 'UserRejectedRequestError'
+        ) {
+          throw new Error('Cancelled')
+        } else if (error.message?.includes('Simulation failed')) {
+          throw new Error('Insufficient funds')
         } else if (error.message?.includes('blockhash not found')) {
-          throw new Error('Transaction expired. Please try again.')
-        } else if (error.message?.includes('AccountNotFound')) {
-          throw new Error('Provider account not found. Please initialize your provider account first.')
+          throw new Error('Expired')
         } else {
-          throw error
+          throw new Error('Failed')
         }
       }
     },
@@ -198,41 +182,44 @@ export function useGetProviderServices() {
       }
 
       try {
-        // Create wallet adapter
-        const wallet = new MobileWalletAdapter(account.publicKey)
+        console.log('Fetching services for provider:', account.publicKey.toString())
+
+        // Create wallet adapter for Anchor
+        const walletAdapter = new MobileWalletAdapter(account.publicKey)
 
         // Create Anchor provider
-        const provider = new AnchorProvider(connection, wallet as any, { commitment: 'processed' })
+        const provider = new AnchorProvider(connection, walletAdapter as any, {
+          commitment: 'confirmed',
+          preflightCommitment: 'confirmed',
+        })
 
         // Create program instance
         const program = new Program<SublyProgram>(sublyProgramIdl as any, provider)
 
-        console.log('Fetching services for provider:', account.publicKey.toString())
+        // Derive subscription service PDA for this provider
+        const [subscriptionService] = getSubscriptionServicePDA(account.publicKey, PROGRAM_ID)
 
-        // Call the program method to get services
-        const services = await program.methods
-          .getSubscriptionServices()
-          .accountsPartial({
-            providerWallet: account.publicKey,
-          })
-          .view()
+        try {
+          // Try to fetch the subscription service account using Anchor
+          const serviceAccount = await program.account.subscriptionService.fetch(subscriptionService)
 
-        console.log('Retrieved services:', services)
-
-        // Transform the data to match our interface
-        return services.map((service: any) => ({
-          provider: service.provider.toString(),
-          serviceId: service.serviceId.toNumber(),
-          name: service.name,
-          feeUsd: service.feeUsd.toNumber() / 100, // Convert from cents
-          billingFrequencyDays: service.billingFrequencyDays.toNumber(),
-          imageUrl: service.imageUrl,
-          createdAt: service.createdAt.toNumber() * 1000, // Convert to milliseconds
-        }))
+          // Transform the data to match our interface
+          return [
+            {
+              provider: serviceAccount.provider.toString(),
+              serviceId: serviceAccount.serviceId.toNumber(),
+              name: serviceAccount.name,
+              feeUsd: serviceAccount.feeUsd.toNumber() / 100, // Convert from cents
+              billingFrequencyDays: serviceAccount.billingFrequencyDays.toNumber(),
+              createdAt: serviceAccount.createdAt.toNumber() * 1000, // Convert to milliseconds
+            },
+          ]
+        } catch (fetchError) {
+          console.log('No service found for this provider:', fetchError)
+          return []
+        }
       } catch (error) {
-        console.log('No services found for provider or error occurred:', error)
-
-        // Return empty array if no services found
+        console.log('Error fetching services:', error)
         return []
       }
     },

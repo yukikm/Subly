@@ -17,7 +17,6 @@ export function ProviderRegisterService() {
     name: '',
     feeUsd: '',
     billingFrequencyDays: '30',
-    imageUrl: '',
   })
 
   const backgroundColor = useThemeColor({ light: '#f8f9fa', dark: '#1a1a1a' }, 'background')
@@ -45,39 +44,24 @@ export function ProviderRegisterService() {
       return
     }
 
-    if (!formData.imageUrl.trim()) {
-      Alert.alert('Error', 'Image URL is required')
-      return
-    }
-
     try {
       const signature = await registerService.mutateAsync({
         name: formData.name.trim(),
         feeUsd,
         billingFrequencyDays: billingDays,
-        imageUrl: formData.imageUrl.trim(),
       })
 
-      Alert.alert(
-        'Success!',
-        `Service "${formData.name}" has been registered successfully!\\n\\nTransaction: ${ellipsify(signature)}`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Clear form
-              setFormData({
-                name: '',
-                feeUsd: '',
-                billingFrequencyDays: '30',
-                imageUrl: '',
-              })
-            },
-          },
-        ],
-      )
+      console.log('Service registered successfully:', signature)
+
+      // Clear form silently
+      setFormData({
+        name: '',
+        feeUsd: '',
+        billingFrequencyDays: '30',
+      })
     } catch (error) {
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to register service')
+      // Log error but don't show to user
+      console.error('Error registering service:', error)
     }
   }
 
@@ -181,7 +165,7 @@ export function ProviderRegisterService() {
           </View>
 
           {/* Image URL */}
-          <View style={{ marginBottom: 30 }}>
+          {/* <View style={{ marginBottom: 30 }}>
             <AppText style={{ marginBottom: 8, fontWeight: '600' }}>Service Image URL *</AppText>
             <TextInput
               style={{
@@ -199,7 +183,7 @@ export function ProviderRegisterService() {
               autoCorrect={false}
             />
             <AppText style={{ opacity: 0.6, fontSize: 12, marginTop: 4 }}>URL to your service logo or image</AppText>
-          </View>
+          </View> */}
 
           {/* Submit Button */}
           <Button

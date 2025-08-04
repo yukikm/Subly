@@ -152,7 +152,7 @@ export function SubscriptionServices({ onSubscriptionSuccess }: SubscriptionServ
 
   return (
     <AppView style={styles.container}>
-      <LinearGradient colors={[Colors.secondary, '#7c3aed']} style={styles.headerGradient}>
+      <LinearGradient colors={[Colors.primary, Colors.secondary]} style={styles.headerGradient}>
         <AppText style={styles.title}>Subscription Services</AppText>
         <AppText style={styles.subtitle}>Choose from our premium subscription services</AppText>
       </LinearGradient>

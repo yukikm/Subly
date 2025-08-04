@@ -24,7 +24,7 @@ export function ProviderRegisterService() {
   const cardBackground = useThemeColor({ light: '#ffffff', dark: '#2a2a2a' }, 'background')
   const inputBackground = useThemeColor({ light: '#f5f5f5', dark: '#333333' }, 'background')
   const textColor = useThemeColor({ light: '#000000', dark: '#ffffff' }, 'text')
-  const primaryColor = useThemeColor({ light: '#007AFF', dark: '#0A84FF' }, 'tint')
+  const primaryColor = useThemeColor({ light: '#31A4AB', dark: '#4CBCC3' }, 'tint')
 
   const handleSubmit = async () => {
     // Validation

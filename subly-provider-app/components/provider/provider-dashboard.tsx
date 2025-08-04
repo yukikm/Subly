@@ -14,7 +14,7 @@ export function ProviderDashboard() {
   const { data: services, isLoading, error } = useGetProviderServices()
   const backgroundColor = useThemeColor({ light: '#f8f9fa', dark: '#1a1a1a' }, 'background')
   const cardBackground = useThemeColor({ light: '#ffffff', dark: '#2a2a2a' }, 'background')
-  const primaryColor = useThemeColor({ light: '#007AFF', dark: '#0A84FF' }, 'tint')
+  const primaryColor = useThemeColor({ light: '#31A4AB', dark: '#4CBCC3' }, 'tint')
 
   if (!account) {
     return (

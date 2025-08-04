@@ -17,8 +17,9 @@ pub struct SubscriptionService {
     pub name: String,
     pub fee_usd: u64, // USDセント単位で保存
     pub billing_frequency_days: u64,
-    pub image_url: String,
+    // pub image_url: String,
     pub created_at: i64,
+    pub bumps: u8,
 }
 
 impl SubscriptionService {
@@ -29,6 +30,7 @@ impl SubscriptionService {
         8 + // fee_usd
         8 + // billing_frequency_days
         4 + 200 + // image_url (String length + content)
+        1 + // bumps    
         8; // created_at
 }
 
@@ -51,6 +53,7 @@ pub struct UserSubscription {
     pub subscription_id: u64, // ユーザーの契約ID
     pub subscribed_at: i64,
     pub is_active: bool,
+    pub bumps: u8,
 }
 
 impl UserSubscription {
@@ -60,5 +63,6 @@ impl UserSubscription {
         8 + // service_id
         8 + // subscription_id
         8 + // subscribed_at
+        1 + // bumps
         1; // is_active
 }

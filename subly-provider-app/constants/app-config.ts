@@ -3,8 +3,8 @@ import { Cluster } from '@/components/cluster/cluster'
 import { ClusterNetwork } from '@/components/cluster/cluster-network'
 
 export class AppConfig {
-  static name = 'subly-provider-app'
-  static uri = 'https://example.com'
+  static name = 'Subly Provider'
+  static uri = 'https://subly.app'
   static clusters: Cluster[] = [
     {
       id: 'solana:devnet',

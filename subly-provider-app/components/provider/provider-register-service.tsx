@@ -52,6 +52,7 @@ export function ProviderRegisterService() {
       })
 
       console.log('Service registered successfully:', signature)
+      Alert.alert('Success', 'Service registered successfully!')
 
       // Clear form silently
       setFormData({
@@ -59,9 +60,9 @@ export function ProviderRegisterService() {
         feeUsd: '',
         billingFrequencyDays: '30',
       })
-    } catch (error) {
-      // Log error but don't show to user
+    } catch (error: any) {
       console.error('Error registering service:', error)
+      Alert.alert('Error', error.message || 'Failed to register service')
     }
   }
 

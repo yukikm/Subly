@@ -38,17 +38,17 @@ interface SubscriptionServiceInfo {
   createdAt: number
 }
 
-// Mobile Wallet Adapter for Anchor
+// Mobile Wallet Adapter compatible wallet for Anchor
 class MobileWalletAdapter {
   constructor(public publicKey: PublicKey) {}
 
-  async signTransaction(tx: any) {
-    // This will be handled by the Mobile Wallet Adapter
+  async signTransaction(tx: VersionedTransaction) {
+    // This will be handled by the existing Mobile Wallet Adapter integration
     return tx
   }
 
-  async signAllTransactions(txs: any[]) {
-    // This will be handled by the Mobile Wallet Adapter
+  async signAllTransactions(txs: VersionedTransaction[]) {
+    // This will be handled by the existing Mobile Wallet Adapter integration
     return txs
   }
 }
@@ -123,7 +123,6 @@ export function useRegisterSubscriptionService() {
         console.log('Transaction created, signing and sending...')
 
         // Use the existing Mobile Wallet Adapter integration
-        // This automatically handles authorization if already connected
         const signature = await signAndSendTransaction(transaction, latestBlockhash.lastValidBlockHeight)
 
         console.log('Service registered successfully:', signature)
@@ -153,18 +152,18 @@ export function useRegisterSubscriptionService() {
           error.message?.includes('cancelled') ||
           error.name === 'UserRejectedRequestError'
         ) {
-          throw new Error('Cancelled')
+          throw new Error('User cancelled the transaction')
         } else if (error.message?.includes('Simulation failed')) {
-          throw new Error('Insufficient funds')
+          throw new Error('Transaction simulation failed - check your balance')
         } else if (error.message?.includes('blockhash not found')) {
-          throw new Error('Expired')
+          throw new Error('Transaction expired - please try again')
         } else {
-          throw new Error('Failed')
+          throw new Error(`Failed to register service: ${error.message}`)
         }
       }
     },
     onSuccess: () => {
-      // Invalidate provider services query
+      // Invalidate provider services query to refresh the data
       queryClient.invalidateQueries({ queryKey: ['provider-services', account?.publicKey?.toString()] })
     },
   })

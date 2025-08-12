@@ -15,69 +15,81 @@ declare_id!("5DpoKLMkQSBTi3n6hnjB7RPhzjhovfDZbEHJvFJBXKL9");
 pub mod subly_program {
     use super::*;
 
-    // pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-    //     initialize::handler(ctx)
-    // }
+    pub fn initialize(
+        ctx: Context<Initialize>,
+        jito_stake_pool: Pubkey,
+        jito_sol_mint: Pubkey,
+        spl_stake_pool_program: Pubkey,
+    ) -> Result<()> {
+        Initialize::handler(ctx, jito_stake_pool, jito_sol_mint, spl_stake_pool_program)
+    }
+
+    pub fn register_provider(
+        ctx: Context<RegisterProvider>,
+        name: String,
+        description: String,
+        website: String,
+    ) -> Result<()> {
+        RegisterProvider::handler(ctx, name, description, website)
+    }
 
     pub fn register_subscription_service(
         ctx: Context<RegisterSubscriptionService>,
         name: String,
+        description: String,
         fee_usd: u64,
         billing_frequency_days: u64,
-        provider: Pubkey,
+        image_url: String,
+        max_subscribers: Option<u64>,
     ) -> Result<()> {
         ctx.accounts.register_subscription_service(
             name,
+            description,
             fee_usd,
             billing_frequency_days,
-            provider,
+            image_url,
+            max_subscribers,
             &ctx.bumps,
         )
     }
 
-    // pub fn get_subscription_services(
-    //     ctx: Context<GetSubscriptionServices>,
-    // ) -> Result<Vec<get_subscription_services::SubscriptionServiceInfo>> {
-    //     get_subscription_services::handler(ctx)
-    // }
-
-    // pub fn get_subscription_service(
-    //     ctx: Context<GetSubscriptionService>,
-    //     service_id: u64,
-    // ) -> Result<get_subscription_services::SubscriptionServiceInfo> {
-    //     get_subscription_services::get_subscription_service_handler(ctx, service_id)
-    // }
-
-    pub fn deposit(ctx: Context<DepositSol>, amount: u64) -> Result<()> {
-        ctx.accounts.deposit(amount)
+    pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
+        ctx.accounts.deposit(amount, &ctx.bumps)
     }
 
-    // pub fn get_user_balance(
-    //     ctx: Context<GetUserBalance>,
-    // ) -> Result<get_user_balance::UserBalanceInfo> {
-    //     get_user_balance::handler(ctx)
-    // }
+    pub fn withdraw(ctx: Context<WithdrawSol>, amount: u64) -> Result<()> {
+        WithdrawSol::handler(ctx, amount)
+    }
 
     pub fn subscribe_to_service(
         ctx: Context<SubscribeToService>,
         provider: Pubkey,
         service_id: u64,
-        subscription_id: u64,
     ) -> Result<()> {
         ctx.accounts
-            .subscribe_to_service(provider, service_id, subscription_id, &ctx.bumps)
+            .subscribe_to_service(provider, service_id, &ctx.bumps)
     }
 
-    // pub fn get_user_subscriptions(
-    //     ctx: Context<GetUserSubscriptions>,
-    // ) -> Result<Vec<get_user_subscriptions::UserSubscriptionInfo>> {
-    //     get_user_subscriptions::handler(ctx)
-    // }
+    pub fn unsubscribe_from_service(
+        ctx: Context<UnsubscribeFromService>,
+        subscription_id: u64,
+    ) -> Result<()> {
+        UnsubscribeFromService::handler(ctx, subscription_id)
+    }
 
-    // pub fn get_user_subscription(
-    //     ctx: Context<GetUserSubscription>,
-    //     subscription_id: u64,
-    // ) -> Result<get_user_subscriptions::UserSubscriptionInfo> {
-    //     get_user_subscriptions::get_user_subscription_handler(ctx, subscription_id)
-    // }
+    pub fn process_subscription_payments(ctx: Context<ProcessSubscriptionPayments>) -> Result<()> {
+        ProcessSubscriptionPayments::handler(ctx)
+    }
+
+    pub fn stake_sol(ctx: Context<StakeSol>, amount: u64) -> Result<()> {
+        StakeSol::handler(ctx, amount)
+    }
+
+    pub fn unstake_sol(ctx: Context<UnstakeSol>, amount: u64) -> Result<()> {
+        UnstakeSol::handler(ctx, amount)
+    }
+
+    pub fn claim_yield(ctx: Context<ClaimYield>) -> Result<()> {
+        ClaimYield::handler(ctx)
+    }
 }

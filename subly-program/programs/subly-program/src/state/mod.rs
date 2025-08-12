@@ -1,68 +1,114 @@
 use anchor_lang::prelude::*;
 
 #[account]
-pub struct Provider {
-    pub wallet: Pubkey,
-    pub service_count: u64,
-}
-
-impl Provider {
-    pub const LEN: usize = 8 + 32 + 8; // discriminator + Pubkey + u64
+#[derive(InitSpace)]
+pub struct GlobalState {
+    pub authority: Pubkey,
+    pub protocol_fee_bps: u16, // Basis points (100 = 1%)
+    pub is_paused: bool,
+    // Jito configuration - can be changed for different networks
+    pub jito_stake_pool: Pubkey,
+    pub jito_sol_mint: Pubkey,
+    pub spl_stake_pool_program: Pubkey,
+    pub bump: u8,
 }
 
 #[account]
+#[derive(InitSpace)]
+pub struct Provider {
+    pub wallet: Pubkey,
+    #[max_len(64)]
+    pub name: String,
+    #[max_len(200)]
+    pub description: String,
+    #[max_len(100)]
+    pub website: String,
+    pub service_count: u64,
+    pub total_subscribers: u64,
+    pub total_revenue: u64, // In lamports
+    pub is_verified: bool,
+    pub created_at: i64,
+    pub bump: u8,
+}
+
+#[account]
+#[derive(InitSpace)]
 pub struct SubscriptionService {
     pub provider: Pubkey,
     pub service_id: u64,
+    #[max_len(64)]
     pub name: String,
-    pub fee_usd: u64, // USDセント単位で保存
+    #[max_len(200)]
+    pub description: String,
+    pub fee_usd: u64, // USD cents
     pub billing_frequency_days: u64,
-    // pub image_url: String,
+    #[max_len(200)]
+    pub image_url: String,
+    pub max_subscribers: Option<u64>,
+    pub current_subscribers: u64,
+    pub is_active: bool,
     pub created_at: i64,
     pub bumps: u8,
 }
 
-impl SubscriptionService {
-    pub const LEN: usize = 8 + // discriminator
-        32 + // provider
-        8 + // service_id
-        4 + 64 + // name (String length + content)
-        8 + // fee_usd
-        8 + // billing_frequency_days
-        4 + 200 + // image_url (String length + content)
-        1 + // bumps    
-        8; // created_at
-}
-
 #[account]
+#[derive(InitSpace)]
 pub struct User {
     pub wallet: Pubkey,
     pub deposited_sol: u64, // lamports
-    pub subscription_count: u64,
-}
-
-impl User {
-    pub const LEN: usize = 8 + 32 + 8 + 8; // discriminator + Pubkey + u64 + u64
+    pub locked_sol: u64,    // lamports locked for active subscriptions
+    pub staked_sol: u64,    // lamports staked for yield generation
+    pub created_at: i64,
+    pub bump: u8,
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct UserSubscription {
     pub user: Pubkey,
     pub provider: Pubkey,
     pub service_id: u64,
-    pub subscription_id: u64, // ユーザーの契約ID
+    pub subscription_id: u64, // User's subscription ID
     pub subscribed_at: i64,
+    pub last_payment_at: Option<i64>,
+    pub next_payment_due: i64,
+    pub total_payments_made: u64,
     pub is_active: bool,
+    pub unsubscribed_at: Option<i64>,
     pub bumps: u8,
 }
 
-impl UserSubscription {
-    pub const LEN: usize = 8 + // discriminator
-        32 + // user
-        32 + // provider  
-        8 + // service_id
-        8 + // subscription_id
-        8 + // subscribed_at
-        1 + // bumps
-        1; // is_active
+#[account]
+#[derive(InitSpace)]
+pub struct PaymentRecord {
+    pub user: Pubkey,
+    pub provider: Pubkey,
+    pub subscription_id: u64,
+    pub amount: u64, // In lamports
+    pub payment_date: i64,
+    pub payment_type: PaymentType,
+    pub bump: u8,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+pub enum PaymentType {
+    Subscription,
+    ProtocolFee,
+}
+
+impl anchor_lang::Space for PaymentType {
+    const INIT_SPACE: usize = 1; // 1 byte for enum discriminator
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct StakeAccount {
+    pub user: Pubkey,
+    pub staked_amount: u64,   // In lamports
+    pub jito_sol_amount: u64, // JitoSOL received
+    pub stake_date: i64,
+    pub last_yield_claim: i64,
+    pub total_yield_earned: u64,
+    pub is_active: bool,
+    pub bump: u8,
 }

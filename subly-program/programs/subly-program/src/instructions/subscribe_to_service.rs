@@ -4,6 +4,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{mint_to, Mint, MintTo, Token, TokenAccount},
 };
+use pyth_sdk_solana::state::SolanaPriceAccount;
 
 #[derive(Accounts)]
 #[instruction(provider: Pubkey, service_id: u64)]
@@ -60,6 +61,10 @@ pub struct SubscribeToService<'info> {
     )]
     pub global_state: Account<'info, GlobalState>,
 
+    /// Pyth SOL/USD price feed account
+    /// CHECK: Pyth price feed account
+    pub sol_usd_price_feed: AccountInfo<'info>,
+
     // Subscription certificate NFT
     #[account(
         init,
@@ -92,20 +97,22 @@ impl<'info> SubscribeToService<'info> {
     ) -> Result<()> {
         require!(!self.global_state.is_paused, ErrorCode::ProtocolPaused);
 
+        // Verify the Pyth price feed account matches the one in GlobalState
+        require!(
+            self.sol_usd_price_feed.key() == self.global_state.sol_usd_price_feed,
+            ErrorCode::InvalidPriceFeed
+        );
+
         let subscription_service = &mut self.subscription_service;
         let user_account = &mut self.user_account;
         let provider_account = &mut self.provider_account;
 
-        // Check if service has reached max subscribers
-        if let Some(max_subscribers) = subscription_service.max_subscribers {
-            require!(
-                subscription_service.current_subscribers < max_subscribers,
-                ErrorCode::SubscriptionLimitReached
-            );
-        }
+        // Get real SOL/USD price from Pyth
+        let sol_usd_price_cents = Self::get_sol_usd_price_from_pyth(&self.sol_usd_price_feed)?;
 
-        // Calculate required locked amount (12 months of subscription fees)
-        let monthly_fee_lamports = subscription_service.fee_usd * 1_000_000; // Assuming 1 USD = 1M lamports for now
+        // Calculate required locked amount (12 months of subscription fees) using real price
+        let monthly_fee_lamports =
+            Self::convert_usd_to_sol_lamports(subscription_service.fee_usd, sol_usd_price_cents)?;
         let required_locked_amount = monthly_fee_lamports * 12; // Lock 12 months worth
 
         // Check if user has sufficient available balance
@@ -173,5 +180,76 @@ impl<'info> SubscribeToService<'info> {
         );
 
         Ok(())
+    }
+
+    /// Get SOL/USD price from Pyth Network - REAL IMPLEMENTATION
+    fn get_sol_usd_price_from_pyth(price_feed_account: &AccountInfo) -> Result<u64> {
+        // Load price feed from Pyth account using the correct API
+        let price_feed = SolanaPriceAccount::account_info_to_feed(price_feed_account)
+            .map_err(|_| ErrorCode::InvalidPriceFeed)?;
+
+        // Get current price with staleness check
+        let current_time = Clock::get()?.unix_timestamp;
+        let max_age = 3600; // 1 hour in seconds
+
+        let price = price_feed
+            .get_price_no_older_than(current_time, max_age)
+            .ok_or(ErrorCode::PriceNotAvailable)?;
+
+        // Validate price data
+        require!(price.price > 0, ErrorCode::InvalidPrice);
+
+        msg!(
+            "Pyth price data: price={}, conf={}, expo={}, timestamp={}",
+            price.price,
+            price.conf,
+            price.expo,
+            price.publish_time
+        );
+
+        // Convert price to USD cents
+        // Pyth SOL/USD typically has exponent of -8, meaning price is in units of 10^-8 USD
+        let price_cents = if price.expo >= 0 {
+            // Positive exponent: multiply
+            (price.price as u64)
+                .checked_mul(10_u64.pow(price.expo as u32))
+                .ok_or(ErrorCode::ArithmeticOverflow)?
+                .checked_mul(100) // Convert to cents
+                .ok_or(ErrorCode::ArithmeticOverflow)?
+        } else {
+            // Negative exponent: divide
+            let divisor = 10_u64.pow((-price.expo) as u32);
+            (price.price as u64)
+                .checked_mul(100) // Convert to cents first
+                .ok_or(ErrorCode::ArithmeticOverflow)?
+                .checked_div(divisor)
+                .ok_or(ErrorCode::ArithmeticOverflow)?
+        };
+
+        // Validate reasonable price range ($10 - $1000 per SOL)
+        require!(
+            price_cents >= 1000 && price_cents <= 100000,
+            ErrorCode::InvalidPrice
+        );
+
+        msg!(
+            "Real SOL/USD price from Pyth: ${:.2} (account: {})",
+            price_cents as f64 / 100.0,
+            price_feed_account.key()
+        );
+
+        Ok(price_cents)
+    }
+
+    /// Convert USD cents to SOL lamports using real Pyth price
+    fn convert_usd_to_sol_lamports(usd_cents: u64, sol_usd_cents: u64) -> Result<u64> {
+        // lamports = (usd_cents * LAMPORTS_PER_SOL) / sol_usd_cents
+        let lamports = (usd_cents as u128)
+            .checked_mul(1_000_000_000) // LAMPORTS_PER_SOL
+            .ok_or(ErrorCode::ArithmeticOverflow)?
+            .checked_div(sol_usd_cents as u128)
+            .ok_or(ErrorCode::ArithmeticOverflow)?;
+
+        Ok(u64::try_from(lamports).map_err(|_| ErrorCode::ArithmeticOverflow)?)
     }
 }

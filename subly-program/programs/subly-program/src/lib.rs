@@ -9,7 +9,7 @@ pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("5DpoKLMkQSBTi3n6hnjB7RPhzjhovfDZbEHJvFJBXKL9");
+declare_id!("AXqjpbqbR9xG4pGnnogD5yauoeD43eDY3L9NnZwxZ7VA");
 
 #[program]
 pub mod subly_program {
@@ -20,17 +20,40 @@ pub mod subly_program {
         jito_stake_pool: Pubkey,
         jito_sol_mint: Pubkey,
         spl_stake_pool_program: Pubkey,
+        sol_usd_price_feed: Pubkey,
+        usdc_mint: Pubkey,
     ) -> Result<()> {
-        Initialize::handler(ctx, jito_stake_pool, jito_sol_mint, spl_stake_pool_program)
+        ctx.accounts.initialize_global_state(
+            jito_stake_pool,
+            jito_sol_mint,
+            spl_stake_pool_program,
+            sol_usd_price_feed,
+            usdc_mint,
+            &ctx.bumps,
+        )
+    }
+
+    pub fn check_subscribable_services<'info>(
+        ctx: Context<'_, '_, '_, 'info, CheckSubscribableServices<'info>>,
+        jito_apy_bps: u16, // Jito APY in basis points (e.g., 700 = 7%)
+    ) -> Result<Vec<SubscribableServiceInfo>> {
+        CheckSubscribableServices::check_subscribable_services(ctx, jito_apy_bps)
+    }
+
+    pub fn check_user_subscription(
+        ctx: Context<CheckUserSubscription>,
+        provider: Pubkey,
+        service_id: u64,
+    ) -> Result<bool> {
+        ctx.accounts.check_user_subscription(provider, service_id)
     }
 
     pub fn register_provider(
         ctx: Context<RegisterProvider>,
         name: String,
         description: String,
-        website: String,
     ) -> Result<()> {
-        RegisterProvider::handler(ctx, name, description, website)
+        ctx.accounts.register_provider(name, description, &ctx.bumps)
     }
 
     pub fn register_subscription_service(
@@ -40,7 +63,6 @@ pub mod subly_program {
         fee_usd: u64,
         billing_frequency_days: u64,
         image_url: String,
-        max_subscribers: Option<u64>,
     ) -> Result<()> {
         ctx.accounts.register_subscription_service(
             name,
@@ -48,7 +70,6 @@ pub mod subly_program {
             fee_usd,
             billing_frequency_days,
             image_url,
-            max_subscribers,
             &ctx.bumps,
         )
     }
@@ -57,8 +78,11 @@ pub mod subly_program {
         ctx.accounts.deposit(amount, &ctx.bumps)
     }
 
-    pub fn withdraw(ctx: Context<WithdrawSol>, amount: u64) -> Result<()> {
-        WithdrawSol::handler(ctx, amount)
+    pub fn withdraw(ctx: Context<Withdraw>, amount: u64, jito_apy_bps: u16) -> Result<()> {
+        // Sequential: unstake_sol then withdraw
+        ctx.accounts
+            .unstake_sol_if_needed(amount, jito_apy_bps, &ctx.bumps)?;
+        ctx.accounts.withdraw(amount, jito_apy_bps, &ctx.bumps)
     }
 
     pub fn subscribe_to_service(
@@ -72,24 +96,39 @@ pub mod subly_program {
 
     pub fn unsubscribe_from_service(
         ctx: Context<UnsubscribeFromService>,
-        subscription_id: u64,
+        provider: Pubkey,
+        service_id: u64,
     ) -> Result<()> {
-        UnsubscribeFromService::handler(ctx, subscription_id)
+        ctx.accounts.unsubscribe_from_service(provider, service_id)
     }
 
     pub fn process_subscription_payments(ctx: Context<ProcessSubscriptionPayments>) -> Result<()> {
-        ProcessSubscriptionPayments::handler(ctx)
+        ctx.accounts.process_subscription_payments()
+    }
+
+    pub fn execute_subscription_payment(
+        ctx: Context<ExecuteSubscriptionPayment>,
+        _user: Pubkey,
+        _provider: Pubkey,
+        _service_id: u64,
+    ) -> Result<()> {
+        ctx.accounts.execute_payment(&ctx.bumps)
     }
 
     pub fn stake_sol(ctx: Context<StakeSol>, amount: u64) -> Result<()> {
-        StakeSol::handler(ctx, amount)
+        ctx.accounts.stake_sol(amount, &ctx.bumps)
     }
 
-    pub fn unstake_sol(ctx: Context<UnstakeSol>, amount: u64) -> Result<()> {
-        UnstakeSol::handler(ctx, amount)
+    pub fn unstake_sol(
+        ctx: Context<UnstakeSol>,
+        jito_sol_amount: u64,
+        jito_apy_bps: u16,
+    ) -> Result<()> {
+        ctx.accounts
+            .unstake_sol(jito_sol_amount, jito_apy_bps, &ctx.bumps)
     }
 
     pub fn claim_yield(ctx: Context<ClaimYield>) -> Result<()> {
-        ClaimYield::handler(ctx)
+        ctx.accounts.claim_yield(&ctx.bumps)
     }
 }

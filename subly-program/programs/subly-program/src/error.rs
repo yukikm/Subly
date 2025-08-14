@@ -42,8 +42,6 @@ pub enum ErrorCode {
     SubscriptionNotActive,
     #[msg("Subscription already exists")]
     SubscriptionAlreadyExists,
-    #[msg("Subscription limit reached")]
-    SubscriptionLimitReached,
     #[msg("Cannot subscribe to own service")]
     CannotSubscribeToOwnService,
 
@@ -54,6 +52,22 @@ pub enum ErrorCode {
     ServiceNotActive,
     #[msg("Service limit reached")]
     ServiceLimitReached,
+    #[msg("Invalid provider")]
+    InvalidProvider,
+    #[msg("Invalid service ID")]
+    InvalidServiceId,
+
+    // NFT and certificate errors
+    #[msg("No certificate to destroy")]
+    NoCertificateToDestroy,
+
+    // Price feed errors
+    #[msg("Invalid price feed")]
+    InvalidPriceFeed,
+    #[msg("Price not available")]
+    PriceNotAvailable,
+    #[msg("Invalid price")]
+    InvalidPrice,
 
     // Staking errors
     #[msg("Minimum stake amount not met")]
@@ -64,6 +78,8 @@ pub enum ErrorCode {
     StakingNotAvailable,
     #[msg("Stake pool operation failed")]
     StakePoolError,
+    #[msg("Invalid Jito stake pool")]
+    InvalidJitoStakePool,
 
     // Protocol errors
     #[msg("Protocol is paused")]

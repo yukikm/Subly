@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-subly_program = "5DpoKLMkQSBTi3n6hnjB7RPhzjhovfDZbEHJvFJBXKL9"
+subly_program = "AXqjpbqbR9xG4pGnnogD5yauoeD43eDY3L9NnZwxZ7VA"
 
 [registry]
 url = "https://api.apr.dev"

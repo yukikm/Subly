@@ -51,50 +51,43 @@ pub struct RegisterProvider<'info> {
 }
 
 impl<'info> RegisterProvider<'info> {
-    pub fn handler(
-        ctx: Context<RegisterProvider>,
+    pub fn register_provider(
+        &mut self,
         name: String,
         description: String,
-        website: String,
+        bumps: &RegisterProviderBumps,
     ) -> Result<()> {
-        require!(
-            !ctx.accounts.global_state.is_paused,
-            ErrorCode::ProtocolPaused
-        );
+        require!(!self.global_state.is_paused, ErrorCode::ProtocolPaused);
         require!(name.len() <= MAX_NAME_LENGTH, ErrorCode::NameTooLong);
         require!(
             description.len() <= MAX_DESCRIPTION_LENGTH,
             ErrorCode::DescriptionTooLong
         );
-        require!(website.len() <= MAX_URL_LENGTH, ErrorCode::UrlTooLong);
 
-        let provider_account = &mut ctx.accounts.provider_account;
+        let provider_account = &mut self.provider_account;
 
-        provider_account.wallet = ctx.accounts.provider.key();
+        provider_account.wallet = self.provider.key();
         provider_account.name = name.clone();
         provider_account.description = description;
-        provider_account.website = website;
-        provider_account.service_count = 0;
         provider_account.total_subscribers = 0;
-        provider_account.total_revenue = 0;
         provider_account.is_verified = false;
         provider_account.created_at = Clock::get()?.unix_timestamp;
-        provider_account.bump = ctx.bumps.provider_account;
+        provider_account.bump = bumps.provider_account;
 
         // Mint provider verification NFT
         let cpi_accounts = MintTo {
-            mint: ctx.accounts.provider_nft_mint.to_account_info(),
-            to: ctx.accounts.provider_nft_token_account.to_account_info(),
-            authority: ctx.accounts.provider.to_account_info(),
+            mint: self.provider_nft_mint.to_account_info(),
+            to: self.provider_nft_token_account.to_account_info(),
+            authority: self.provider.to_account_info(),
         };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_program = self.token_program.to_account_info();
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
         mint_to(cpi_ctx, 1)?;
 
         msg!(
             "Provider '{}' registered with NFT: {}",
             name,
-            ctx.accounts.provider_nft_mint.key()
+            self.provider_nft_mint.key()
         );
 
         Ok(())

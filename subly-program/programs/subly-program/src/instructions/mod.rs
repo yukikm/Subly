@@ -1,3 +1,5 @@
+pub mod check_subscribable_services;
+pub mod check_user_subscription;
 pub mod claim_yield;
 pub mod deposit;
 pub mod initialize;
@@ -8,8 +10,10 @@ pub mod stake_sol;
 pub mod subscribe_to_service;
 pub mod unstake_sol;
 pub mod unsubscribe_from_service;
-pub mod withdraw_sol;
+pub mod withdraw;
 
+pub use check_subscribable_services::*;
+pub use check_user_subscription::*;
 pub use claim_yield::*;
 pub use deposit::*;
 pub use initialize::*;
@@ -20,4 +24,4 @@ pub use stake_sol::*;
 pub use subscribe_to_service::*;
 pub use unstake_sol::*;
 pub use unsubscribe_from_service::*;
-pub use withdraw_sol::*;
+pub use withdraw::*;

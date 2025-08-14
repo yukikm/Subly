@@ -10,6 +10,13 @@ pub struct GlobalState {
     pub jito_stake_pool: Pubkey,
     pub jito_sol_mint: Pubkey,
     pub spl_stake_pool_program: Pubkey,
+    // Pyth price feed configuration
+    pub sol_usd_price_feed: Pubkey, // SOL/USD price feed account
+    // USDC configuration for payments
+    pub usdc_mint: Pubkey, // USDC mint address
+    // Global service counter for unique service IDs
+    pub total_services: u64,
+    pub last_payment_processed: i64, // Timestamp of last payment processing
     pub bump: u8,
 }
 
@@ -21,11 +28,7 @@ pub struct Provider {
     pub name: String,
     #[max_len(200)]
     pub description: String,
-    #[max_len(100)]
-    pub website: String,
-    pub service_count: u64,
     pub total_subscribers: u64,
-    pub total_revenue: u64, // In lamports
     pub is_verified: bool,
     pub created_at: i64,
     pub bump: u8,
@@ -44,7 +47,6 @@ pub struct SubscriptionService {
     pub billing_frequency_days: u64,
     #[max_len(200)]
     pub image_url: String,
-    pub max_subscribers: Option<u64>,
     pub current_subscribers: u64,
     pub is_active: bool,
     pub created_at: i64,

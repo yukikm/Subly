@@ -30,7 +30,7 @@ pub struct RegisterSubscriptionService<'info> {
         seeds = [
             SUBSCRIPTION_SERVICE_SEED.as_bytes(),
             provider.key().as_ref(),
-            provider_account.service_count.to_le_bytes().as_ref()
+            global_state.total_services.to_le_bytes().as_ref()
         ],
         bump
     )]
@@ -49,7 +49,6 @@ impl<'info> RegisterSubscriptionService<'info> {
         fee_usd: u64,
         billing_frequency_days: u64,
         image_url: String,
-        max_subscribers: Option<u64>,
         bumps: &RegisterSubscriptionServiceBumps,
     ) -> Result<()> {
         require!(!self.global_state.is_paused, ErrorCode::ProtocolPaused);
@@ -67,24 +66,24 @@ impl<'info> RegisterSubscriptionService<'info> {
         );
 
         let provider_account = &mut self.provider_account;
+        let global_state = &mut self.global_state;
 
         self.subscription_service.set_inner(SubscriptionService {
             provider: self.provider.key(),
-            service_id: provider_account.service_count,
+            service_id: global_state.total_services,
             name: name.clone(),
             description,
             fee_usd,
             billing_frequency_days,
             image_url,
-            max_subscribers,
             current_subscribers: 0,
             is_active: true,
             created_at: Clock::get()?.unix_timestamp,
             bumps: bumps.subscription_service,
         });
 
-        // Update provider's service count
-        provider_account.service_count += 1;
+        // Update global service count
+        global_state.total_services += 1;
 
         msg!(
             "Subscription service '{}' registered by provider {} with fee ${:.2} per {} days",

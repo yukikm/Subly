@@ -45,9 +45,9 @@ pub struct ClaimYield<'info> {
 }
 
 impl<'info> ClaimYield<'info> {
-    pub fn handler(ctx: Context<ClaimYield>) -> Result<()> {
-        let user_account = &mut ctx.accounts.user_account;
-        let stake_account = &mut ctx.accounts.stake_account;
+    pub fn claim_yield(&mut self, bumps: &ClaimYieldBumps) -> Result<()> {
+        let user_account = &mut self.user_account;
+        let stake_account = &mut self.stake_account;
 
         let current_time = Clock::get()?.unix_timestamp;
         let time_since_last_claim = current_time - stake_account.last_yield_claim;
@@ -69,20 +69,20 @@ impl<'info> ClaimYield<'info> {
 
         if yield_amount > 0 {
             // Transfer yield from Jito vault to user vault (simplified)
-            let jito_vault_bump = ctx.bumps.jito_vault;
+            let jito_vault_bump = bumps.jito_vault;
             let signer_seeds: &[&[&[u8]]] = &[&[
                 JITO_VAULT_SEED.as_bytes(),
                 &[jito_vault_bump],
             ]];
 
             let transfer_ix = anchor_lang::system_program::Transfer {
-                from: ctx.accounts.jito_vault.to_account_info(),
-                to: ctx.accounts.sol_vault.to_account_info(),
+                from: self.jito_vault.to_account_info(),
+                to: self.sol_vault.to_account_info(),
             };
 
             anchor_lang::system_program::transfer(
                 CpiContext::new_with_signer(
-                    ctx.accounts.system_program.to_account_info(),
+                    self.system_program.to_account_info(),
                     transfer_ix,
                     signer_seeds,
                 ),
@@ -101,7 +101,7 @@ impl<'info> ClaimYield<'info> {
 
             msg!(
                 "User {} claimed {} SOL yield (total earned: {} SOL)",
-                ctx.accounts.user.key(),
+                self.user.key(),
                 yield_amount as f64 / 1_000_000_000.0,
                 stake_account.total_yield_earned as f64 / 1_000_000_000.0
             );

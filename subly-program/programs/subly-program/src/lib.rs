@@ -9,7 +9,7 @@ pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("AXqjpbqbR9xG4pGnnogD5yauoeD43eDY3L9NnZwxZ7VA");
+declare_id!("9MV6eJ5CfimYDv4WSqtyPx1Uc36apP1dzTMpGrobYCnc");
 
 #[program]
 pub mod subly_program {
@@ -53,7 +53,8 @@ pub mod subly_program {
         name: String,
         description: String,
     ) -> Result<()> {
-        ctx.accounts.register_provider(name, description, &ctx.bumps)
+        ctx.accounts
+            .register_provider(name, description, &ctx.bumps)
     }
 
     pub fn register_subscription_service(
@@ -113,6 +114,13 @@ pub mod subly_program {
         _service_id: u64,
     ) -> Result<()> {
         ctx.accounts.execute_payment(&ctx.bumps)
+    }
+
+    pub fn create_payment_record(
+        ctx: Context<CreatePaymentRecord>,
+        amount: u64,
+    ) -> Result<()> {
+        ctx.accounts.create_payment_record(amount)
     }
 
     pub fn stake_sol(ctx: Context<StakeSol>, amount: u64) -> Result<()> {
